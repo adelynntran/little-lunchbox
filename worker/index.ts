@@ -17,6 +17,26 @@ interface Env {
 interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
   passThroughOnException(): void;
+  access?: {
+    aud: string;
+    getIdentity(): Promise<{ email?: string } | null>;
+  };
+}
+
+const OWNER_HEADER = "x-little-lunchbox-owner";
+
+async function withVerifiedOwner(request: Request, ctx: ExecutionContext) {
+  const headers = new Headers(request.headers);
+
+  // Never trust an identity header supplied by the browser. Only Cloudflare
+  // Access's verified execution context is allowed to set the database owner.
+  headers.delete(OWNER_HEADER);
+  if (ctx.access) {
+    const identity = await ctx.access.getIdentity();
+    if (identity?.email) headers.set(OWNER_HEADER, identity.email.trim().toLowerCase());
+  }
+
+  return new Request(request, { headers });
 }
 
 // Image security config. SVG sources with .svg extension auto-skip the
@@ -40,7 +60,7 @@ const worker = {
       }, allowedWidths);
     }
 
-    return handler.fetch(request, env, ctx);
+    return handler.fetch(await withVerifiedOwner(request, ctx), env, ctx);
   },
 };
 

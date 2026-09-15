@@ -34,6 +34,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .sidebar-note { margin-top: auto; padding: 16px; border: 1.5px solid var(--ink); background: var(--butter); box-shadow: 3px 4px 0 rgba(60, 51, 45, .6); transform: rotate(1.5deg); }
 .sidebar-note p { margin: 4px 0 0; font-size: 13px; line-height: 1.45; }
 .note-doodle { font-size: 24px; }
+.sync-status { margin: -16px -16px 13px; padding: 8px 9px; display: flex; align-items: center; gap: 7px; border-bottom: 1px dashed rgba(60,51,45,.48); background: rgba(255,255,255,.38); font-size: 9px; transform: rotate(-1.5deg); }
+.sync-status i { width: 8px; height: 8px; flex: 0 0 auto; border: 1px solid var(--ink); border-radius: 50%; background: var(--blue-dark); }
+.sync-status.status-saving i, .sync-status.status-loading i { background: var(--butter); animation: sync-pulse 1s ease-in-out infinite alternate; }
+.sync-status.status-synced i { background: #7d9b73; }
+.sync-status.status-local i { background: var(--blue-dark); }
+.sync-status.status-offline i { background: var(--tomato); }
+@keyframes sync-pulse { to { transform: scale(.65); opacity: .48; } }
 .content { min-width: 0; padding: 45px clamp(25px, 4.5vw, 68px) 68px; }
 .page-header { max-width: 1430px; min-height: 110px; margin: 0 auto 30px; display: flex; justify-content: space-between; align-items: end; gap: 25px; }
 .eyebrow { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
@@ -156,7 +163,8 @@ h1 { margin: 0; font-size: clamp(39px, 5vw, 66px); line-height: 1; letter-spacin
 
 /* Modals */
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; padding: 24px; display: grid; place-items: center; overflow-y: auto; background: rgba(43,37,33,.58); backdrop-filter: blur(3px); }
-.dish-detail, .add-dish-modal { width: min(100%, 620px); max-height: calc(100vh - 48px); position: relative; padding: 35px; overflow-y: auto; border: 2px solid var(--ink); background: var(--paper); box-shadow: 9px 10px 0 rgba(33,29,26,.5); }
+.modal-backdrop-dismiss { position: fixed; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; cursor: default; }
+.dish-detail, .add-dish-modal { width: min(100%, 620px); max-height: calc(100vh - 48px); position: relative; z-index: 1; padding: 35px; overflow-y: auto; border: 2px solid var(--ink); background: var(--paper); box-shadow: 9px 10px 0 rgba(33,29,26,.5); }
 .dish-detail { width: min(100%, 490px); transform: rotate(-.3deg); }
 .modal-close { width: 34px; height: 34px; position: absolute; top: 13px; right: 13px; padding: 0; border: 1.5px solid var(--ink); border-radius: 50%; background: white; font-size: 23px; line-height: 1; }
 .detail-symbol { width: 57px; height: 57px; margin-bottom: 20px; display: grid; place-items: center; border: 1.5px solid var(--ink); border-radius: 50%; background: rgba(255,255,255,.5); font-size: 30px; }

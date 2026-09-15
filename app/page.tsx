@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 type DishType = "main" | "base" | "side" | "breakfast" | "complete";
 type MealTime = "breakfast" | "lunch" | "dinner";
 type View = "week" | "kitchen" | "grocery" | "leftovers";
+type SyncStatus = "loading" | "saving" | "synced" | "local" | "offline";
 
 type Ingredient = {
   name: string;
@@ -261,6 +262,8 @@ function prettyAmount(amount: number) {
 
 const blankIngredient = (): Ingredient => ({ name: "", amount: 1, unit: "", aisle: "Produce" });
 
+const makeId = (prefix: string) => `${prefix}-${globalThis.crypto.randomUUID()}`;
+
 export default function Home() {
   const [view, setView] = useState<View>("week");
   const [mealTime, setMealTime] = useState<MealTime>("dinner");
@@ -276,31 +279,127 @@ export default function Home() {
   const [showPantry, setShowPantry] = useState(false);
   const [toast, setToast] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
   const [newDish, setNewDish] = useState({
     name: "", type: "main" as DishType, families: "Vietnamese", servings: 2,
     recipe: "", link: "", ingredients: [blankIngredient()],
   });
 
   useEffect(() => {
-    try {
-      const savedDishes = localStorage.getItem("little-lunchbox-dishes");
-      const savedPlan = localStorage.getItem("little-lunchbox-plan");
-      const savedPantry = localStorage.getItem("little-lunchbox-pantry");
-      if (savedDishes) setDishes(JSON.parse(savedDishes));
-      if (savedPlan) setPlan(JSON.parse(savedPlan));
-      if (savedPantry) setPantryItems(JSON.parse(savedPantry));
-    } catch {
-      // Keep the starter kitchen if local data is malformed.
+    let active = true;
+
+    async function hydrateKitchen() {
+      let cachedDishes = DEFAULT_DISHES;
+      let cachedPlan = buildWeek(DEFAULT_DISHES);
+      let cachedPantry: string[] = [];
+      let cachedChecked: string[] = [];
+      let cachedSeed = 0;
+
+      try {
+        const savedDishes = localStorage.getItem("little-lunchbox-dishes");
+        const savedPlan = localStorage.getItem("little-lunchbox-plan");
+        const savedPantry = localStorage.getItem("little-lunchbox-pantry");
+        const savedChecked = localStorage.getItem("little-lunchbox-checked");
+        const savedSeed = localStorage.getItem("little-lunchbox-seed");
+        if (savedDishes) cachedDishes = JSON.parse(savedDishes);
+        if (savedPlan) cachedPlan = JSON.parse(savedPlan);
+        if (savedPantry) cachedPantry = JSON.parse(savedPantry);
+        if (savedChecked) cachedChecked = JSON.parse(savedChecked);
+        if (savedSeed) cachedSeed = Number(savedSeed) || 0;
+        setDishes(cachedDishes);
+        setPlan(cachedPlan);
+        setPantryItems(cachedPantry);
+        setCheckedItems(cachedChecked);
+        setSeed(cachedSeed);
+      } catch {
+        // The default kitchen remains available if the offline cache is malformed.
+      }
+
+      try {
+        const response = await fetch("/api/state", { cache: "no-store", credentials: "same-origin" });
+        if (!active) return;
+        if (response.status === 401) {
+          setSyncStatus("local");
+          return;
+        }
+        if (!response.ok) throw new Error("Cloud sync is unavailable");
+
+        const payload = await response.json() as {
+          state: null | {
+            dishes: Dish[];
+            plan: WeekPlan;
+            pantryItems: string[];
+            checkedItems: string[];
+            seed: number;
+          };
+        };
+
+        if (payload.state) {
+          setDishes(payload.state.dishes);
+          setPlan(payload.state.plan);
+          setPantryItems(payload.state.pantryItems);
+          setCheckedItems(payload.state.checkedItems);
+          setSeed(payload.state.seed);
+        } else {
+          const migrationResponse = await fetch("/api/state", {
+            method: "PUT",
+            credentials: "same-origin",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              dishes: cachedDishes,
+              plan: cachedPlan,
+              pantryItems: cachedPantry,
+              checkedItems: cachedChecked,
+              seed: cachedSeed,
+            }),
+          });
+          if (!migrationResponse.ok) throw new Error("Could not create the cloud copy");
+        }
+        if (active) setSyncStatus("synced");
+      } catch {
+        if (active) setSyncStatus("offline");
+      } finally {
+        if (active) setLoaded(true);
+      }
     }
-    setLoaded(true);
+
+    void hydrateKitchen();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
+
     localStorage.setItem("little-lunchbox-dishes", JSON.stringify(dishes));
     localStorage.setItem("little-lunchbox-plan", JSON.stringify(plan));
     localStorage.setItem("little-lunchbox-pantry", JSON.stringify(pantryItems));
-  }, [dishes, plan, pantryItems, loaded]);
+    localStorage.setItem("little-lunchbox-checked", JSON.stringify(checkedItems));
+    localStorage.setItem("little-lunchbox-seed", String(seed));
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        setSyncStatus((current) => current === "local" ? current : "saving");
+        const response = await fetch("/api/state", {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ dishes, plan, pantryItems, checkedItems, seed }),
+          signal: controller.signal,
+        });
+        if (response.status === 401) setSyncStatus("local");
+        else if (response.ok) setSyncStatus("synced");
+        else setSyncStatus("offline");
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setSyncStatus("offline");
+      }
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [dishes, plan, pantryItems, checkedItems, seed, loaded]);
 
   useEffect(() => {
     if (!toast) return;
@@ -383,7 +482,7 @@ export default function Home() {
       const index = breakfasts.findIndex((dish) => dish.id === current);
       const next = breakfasts[(index + 1 + breakfasts.length) % breakfasts.length];
       if (!next) return;
-      const batch = `remix-${Date.now()}-${next.id}`;
+      const batch = makeId(`remix-${next.id}`);
       setPlan((currentPlan) => ({
         ...currentPlan,
         breakfast: currentPlan.breakfast.map((meal, indexOfMeal) => indexOfMeal === dayIndex ? {
@@ -399,7 +498,7 @@ export default function Home() {
       const base = dishes.find((dish) => dish.type === "base" && compatible(main, dish));
       const side = dishes.find((dish) => dish.type === "side" && compatible(main, dish));
       const components = [main, base, side].filter(Boolean) as Dish[];
-      const stamp = `remix-${Date.now()}`;
+      const stamp = makeId("remix");
       const newMeal: Meal = {
         id: stamp,
         componentIds: components.map((dish) => dish.id),
@@ -419,7 +518,7 @@ export default function Home() {
     const validIngredients = newDish.ingredients.filter((ingredient) => ingredient.name.trim());
     if (!newDish.name.trim() || !validIngredients.length) return;
     const dish: Dish = {
-      id: `${newDish.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`,
+      id: makeId(newDish.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")),
       name: newDish.name.trim(),
       type: newDish.type,
       families: newDish.families.split(",").map((family) => family.trim()).filter(Boolean),
@@ -473,6 +572,14 @@ export default function Home() {
           ))}
         </nav>
         <div className="sidebar-note">
+          <div className={`sync-status status-${syncStatus}`}>
+            <i />
+            {syncStatus === "loading" && "opening your kitchen..."}
+            {syncStatus === "saving" && "saving..."}
+            {syncStatus === "synced" && "saved across devices"}
+            {syncStatus === "local" && "saved on this device"}
+            {syncStatus === "offline" && "offline · saved locally"}
+          </div>
           <span className="note-doodle">⌁</span>
           <p>Good food,<br />all figured out.</p>
         </div>
@@ -663,8 +770,9 @@ export default function Home() {
       </section>
 
       {selectedDish && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setSelectedDish(null)}>
-          <section className={`dish-detail type-${selectedDish.type}`} role="dialog" aria-modal="true" aria-label={selectedDish.name} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop">
+          <button type="button" className="modal-backdrop-dismiss" aria-label="Close dish details" onClick={() => setSelectedDish(null)} />
+          <section className={`dish-detail type-${selectedDish.type}`} role="dialog" aria-modal="true" aria-label={selectedDish.name}>
             <button className="modal-close" onClick={() => setSelectedDish(null)} aria-label="Close">×</button>
             <span className="detail-symbol">{selectedDish.symbol}</span>
             <p className="eyebrow">{TYPE_LABELS[selectedDish.type]}</p>
@@ -680,8 +788,9 @@ export default function Home() {
       )}
 
       {showAddDish && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowAddDish(false)}>
-          <form className="add-dish-modal" onSubmit={submitDish} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop">
+          <button type="button" className="modal-backdrop-dismiss" aria-label="Close add dish form" onClick={() => setShowAddDish(false)} />
+          <form className="add-dish-modal" onSubmit={submitDish}>
             <button type="button" className="modal-close" onClick={() => setShowAddDish(false)} aria-label="Close">×</button>
             <p className="eyebrow">A NEW RECIPE CARD</p>
             <h2>Add a dish</h2>
