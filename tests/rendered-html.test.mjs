@@ -27,6 +27,7 @@ test("server-renders Little Lunchbox", async () => {
   assert.match(html, /my kitchen/i);
   assert.match(html, /grocery list/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
+  assert.doesNotMatch(html, /Vietnamese marinated pork|Steamed jasmine rice/i);
 });
 
 test("contains no disposable starter preview", async () => {

@@ -36,6 +36,14 @@ type Meal = {
 
 type WeekPlan = Record<MealTime, Meal[]>;
 
+type KitchenState = {
+  dishes: Dish[];
+  plan: WeekPlan;
+  pantryItems: string[];
+  checkedItems: string[];
+  seed: number;
+};
+
 const DAYS = [
   { short: "Mon", long: "Monday", date: "14" },
   { short: "Tue", long: "Tuesday", date: "15" },
@@ -62,131 +70,11 @@ const TYPE_SYMBOLS: Record<DishType, string> = {
   complete: "✦",
 };
 
-const DEFAULT_DISHES: Dish[] = [
-  {
-    id: "viet-pork", name: "Vietnamese marinated pork", type: "main", families: ["Vietnamese"], servings: 3, symbol: "◒",
-    ingredients: [
-      { name: "pork shoulder", amount: 450, unit: "g", aisle: "Meat & seafood" },
-      { name: "fish sauce", amount: 2, unit: "tbsp", aisle: "Pantry" },
-      { name: "brown sugar", amount: 1, unit: "tbsp", aisle: "Pantry" },
-      { name: "garlic", amount: 3, unit: "cloves", aisle: "Produce" },
-    ],
-    recipe: "Mix the marinade, coat the pork, then sear or grill until caramelized and cooked through.",
-  },
-  {
-    id: "ginger-salmon", name: "Ginger soy salmon", type: "main", families: ["Japanese", "Neutral"], servings: 2, symbol: "♓",
-    ingredients: [
-      { name: "salmon fillet", amount: 2, unit: "pieces", aisle: "Meat & seafood" },
-      { name: "soy sauce", amount: 2, unit: "tbsp", aisle: "Pantry" },
-      { name: "ginger", amount: 1, unit: "thumb", aisle: "Produce" },
-      { name: "honey", amount: 1, unit: "tbsp", aisle: "Pantry" },
-    ],
-    recipe: "Brush salmon with soy, ginger and honey. Bake until glossy and just cooked.",
-  },
-  {
-    id: "miso-chicken", name: "Miso glazed chicken", type: "main", families: ["Japanese"], servings: 3, symbol: "◓",
-    ingredients: [
-      { name: "chicken thighs", amount: 500, unit: "g", aisle: "Meat & seafood" },
-      { name: "white miso", amount: 2, unit: "tbsp", aisle: "Pantry" },
-      { name: "soy sauce", amount: 1, unit: "tbsp", aisle: "Pantry" },
-    ],
-    recipe: "Coat the chicken in miso and soy, then roast until burnished at the edges.",
-  },
-  {
-    id: "tomato-eggs", name: "Tomato & eggs", type: "main", families: ["Chinese", "Vietnamese"], servings: 2, symbol: "◎",
-    ingredients: [
-      { name: "eggs", amount: 4, unit: "", aisle: "Dairy & eggs" },
-      { name: "tomatoes", amount: 3, unit: "", aisle: "Produce" },
-      { name: "scallions", amount: 2, unit: "", aisle: "Produce" },
-    ],
-    recipe: "Soft-scramble the eggs, cook down the tomatoes, then fold everything together.",
-  },
-  {
-    id: "lemon-chicken", name: "Lemony herb chicken", type: "main", families: ["Western", "Italian"], servings: 3, symbol: "◐",
-    ingredients: [
-      { name: "chicken breast", amount: 500, unit: "g", aisle: "Meat & seafood" },
-      { name: "lemon", amount: 1, unit: "", aisle: "Produce" },
-      { name: "dried oregano", amount: 1, unit: "tsp", aisle: "Pantry" },
-    ],
-    recipe: "Season with lemon and oregano, then pan-roast until golden.",
-  },
-  {
-    id: "rice", name: "Steamed jasmine rice", type: "base", families: ["Vietnamese", "Chinese", "Japanese", "Neutral"], servings: 4, symbol: "▱",
-    ingredients: [{ name: "jasmine rice", amount: 2, unit: "cups", aisle: "Pantry" }],
-    recipe: "Rinse until the water runs mostly clear, then steam with the right amount of water.",
-  },
-  {
-    id: "udon", name: "Udon noodles", type: "base", families: ["Japanese"], servings: 2, symbol: "≈",
-    ingredients: [{ name: "udon noodles", amount: 2, unit: "packs", aisle: "Pantry" }],
-  },
-  {
-    id: "pasta", name: "Buttered pasta", type: "base", families: ["Italian", "Western"], servings: 3, symbol: "⌇",
-    ingredients: [
-      { name: "short pasta", amount: 300, unit: "g", aisle: "Pantry" },
-      { name: "butter", amount: 2, unit: "tbsp", aisle: "Dairy & eggs" },
-    ],
-  },
-  {
-    id: "cucumber", name: "Smashed cucumber salad", type: "side", families: ["Vietnamese", "Chinese", "Japanese"], servings: 3, symbol: "❋",
-    ingredients: [
-      { name: "cucumber", amount: 2, unit: "", aisle: "Produce" },
-      { name: "rice vinegar", amount: 1, unit: "tbsp", aisle: "Pantry" },
-      { name: "sesame oil", amount: 1, unit: "tsp", aisle: "Pantry" },
-    ],
-    recipe: "Smash, salt and drain the cucumbers. Toss with vinegar and sesame oil.",
-  },
-  {
-    id: "broccoli", name: "Sesame broccoli", type: "side", families: ["Chinese", "Japanese", "Neutral"], servings: 3, symbol: "♣",
-    ingredients: [
-      { name: "broccoli", amount: 1, unit: "head", aisle: "Produce" },
-      { name: "sesame seeds", amount: 1, unit: "tbsp", aisle: "Pantry" },
-    ],
-  },
-  {
-    id: "garlic-greens", name: "Garlic greens", type: "side", families: ["Vietnamese", "Chinese", "Neutral"], servings: 2, symbol: "♧",
-    ingredients: [
-      { name: "bok choy", amount: 1, unit: "bunch", aisle: "Produce" },
-      { name: "garlic", amount: 2, unit: "cloves", aisle: "Produce" },
-    ],
-  },
-  {
-    id: "squash", name: "Roasted squash", type: "side", families: ["Japanese", "Western", "Neutral"], servings: 3, symbol: "◔",
-    ingredients: [{ name: "kabocha squash", amount: 0.5, unit: "", aisle: "Produce" }],
-  },
-  {
-    id: "yogurt-bowl", name: "Blueberry yogurt bowl", type: "breakfast", families: ["Breakfast"], servings: 1, symbol: "●",
-    ingredients: [
-      { name: "Greek yogurt", amount: 1, unit: "cup", aisle: "Dairy & eggs" },
-      { name: "blueberries", amount: 0.5, unit: "cup", aisle: "Produce" },
-      { name: "granola", amount: 0.25, unit: "cup", aisle: "Pantry" },
-    ],
-  },
-  {
-    id: "egg-toast", name: "Jammy egg toast", type: "breakfast", families: ["Breakfast"], servings: 1, symbol: "☼",
-    ingredients: [
-      { name: "eggs", amount: 2, unit: "", aisle: "Dairy & eggs" },
-      { name: "sourdough bread", amount: 2, unit: "slices", aisle: "Bakery" },
-    ],
-  },
-  {
-    id: "banana-oats", name: "Banana cinnamon oats", type: "breakfast", families: ["Breakfast"], servings: 2, symbol: "◡",
-    ingredients: [
-      { name: "rolled oats", amount: 1, unit: "cup", aisle: "Pantry" },
-      { name: "banana", amount: 2, unit: "", aisle: "Produce" },
-      { name: "milk", amount: 2, unit: "cups", aisle: "Dairy & eggs" },
-    ],
-  },
-  {
-    id: "pho", name: "Quick chicken pho", type: "complete", families: ["Vietnamese"], servings: 3, symbol: "♨",
-    ingredients: [
-      { name: "rice noodles", amount: 300, unit: "g", aisle: "Pantry" },
-      { name: "chicken breast", amount: 300, unit: "g", aisle: "Meat & seafood" },
-      { name: "chicken broth", amount: 1, unit: "L", aisle: "Pantry" },
-      { name: "bean sprouts", amount: 1, unit: "bag", aisle: "Produce" },
-    ],
-    recipe: "Warm the broth with ginger and spices. Add noodles and sliced chicken, then finish with sprouts.",
-  },
-];
+const LEGACY_STARTER_DISH_IDS = new Set([
+  "viet-pork", "ginger-salmon", "miso-chicken", "tomato-eggs", "lemon-chicken",
+  "rice", "udon", "pasta", "cucumber", "broccoli", "garlic-greens", "squash",
+  "yogurt-bowl", "egg-toast", "banana-oats", "pho",
+]);
 
 function rotate<T>(items: T[], amount: number) {
   if (!items.length) return items;
@@ -203,10 +91,9 @@ function buildWeek(dishes: Dish[], seed = 0): WeekPlan {
   const mains = rotate(dishes.filter((dish) => dish.type === "main"), seed);
   const bases = dishes.filter((dish) => dish.type === "base");
   const sides = dishes.filter((dish) => dish.type === "side");
-  const fallback = dishes[0];
 
   const breakfast: Meal[] = DAYS.map((_, dayIndex) => {
-    const dish = breakfasts[dayIndex % Math.max(breakfasts.length, 1)] || fallback;
+    const dish = breakfasts[dayIndex % Math.max(breakfasts.length, 1)];
     return {
       id: `breakfast-${seed}-${dayIndex}`,
       componentIds: dish ? [dish.id] : [],
@@ -252,6 +139,23 @@ function buildWeek(dishes: Dish[], seed = 0): WeekPlan {
   };
 }
 
+function removeLegacyStarterData(state: KitchenState) {
+  const dishes = state.dishes.filter((dish) => !LEGACY_STARTER_DISH_IDS.has(dish.id));
+  const planUsesStarterData = Object.values(state.plan).some((meals) =>
+    meals.some((meal) => meal.componentIds.some((id) => LEGACY_STARTER_DISH_IDS.has(id))),
+  );
+  if (dishes.length === state.dishes.length && !planUsesStarterData) return state;
+
+  const seed = state.seed + 1;
+  return {
+    dishes,
+    plan: buildWeek(dishes, seed),
+    pantryItems: [],
+    checkedItems: [],
+    seed,
+  };
+}
+
 function prettyAmount(amount: number) {
   if (Number.isInteger(amount)) return String(amount);
   if (amount === 0.25) return "¼";
@@ -267,9 +171,9 @@ const makeId = (prefix: string) => `${prefix}-${globalThis.crypto.randomUUID()}`
 export default function Home() {
   const [view, setView] = useState<View>("week");
   const [mealTime, setMealTime] = useState<MealTime>("dinner");
-  const [dishes, setDishes] = useState<Dish[]>(DEFAULT_DISHES);
+  const [dishes, setDishes] = useState<Dish[]>([]);
   const [seed, setSeed] = useState(0);
-  const [plan, setPlan] = useState<WeekPlan>(() => buildWeek(DEFAULT_DISHES));
+  const [plan, setPlan] = useState<WeekPlan>(() => buildWeek([]));
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | DishType>("all");
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
@@ -281,7 +185,7 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("loading");
   const [newDish, setNewDish] = useState({
-    name: "", type: "main" as DishType, families: "Vietnamese", servings: 2,
+    name: "", type: "main" as DishType, families: "", servings: 2,
     recipe: "", link: "", ingredients: [blankIngredient()],
   });
 
@@ -289,8 +193,8 @@ export default function Home() {
     let active = true;
 
     async function hydrateKitchen() {
-      let cachedDishes = DEFAULT_DISHES;
-      let cachedPlan = buildWeek(DEFAULT_DISHES);
+      let cachedDishes: Dish[] = [];
+      let cachedPlan = buildWeek([]);
       let cachedPantry: string[] = [];
       let cachedChecked: string[] = [];
       let cachedSeed = 0;
@@ -306,13 +210,25 @@ export default function Home() {
         if (savedPantry) cachedPantry = JSON.parse(savedPantry);
         if (savedChecked) cachedChecked = JSON.parse(savedChecked);
         if (savedSeed) cachedSeed = Number(savedSeed) || 0;
-        setDishes(cachedDishes);
-        setPlan(cachedPlan);
-        setPantryItems(cachedPantry);
-        setCheckedItems(cachedChecked);
-        setSeed(cachedSeed);
+        const cleanedCache = removeLegacyStarterData({
+          dishes: cachedDishes,
+          plan: cachedPlan,
+          pantryItems: cachedPantry,
+          checkedItems: cachedChecked,
+          seed: cachedSeed,
+        });
+        cachedDishes = cleanedCache.dishes;
+        cachedPlan = cleanedCache.plan;
+        cachedPantry = cleanedCache.pantryItems;
+        cachedChecked = cleanedCache.checkedItems;
+        cachedSeed = cleanedCache.seed;
+        setDishes(cleanedCache.dishes);
+        setPlan(cleanedCache.plan);
+        setPantryItems(cleanedCache.pantryItems);
+        setCheckedItems(cleanedCache.checkedItems);
+        setSeed(cleanedCache.seed);
       } catch {
-        // The default kitchen remains available if the offline cache is malformed.
+        // An empty kitchen remains available if the offline cache is malformed.
       }
 
       try {
@@ -335,11 +251,12 @@ export default function Home() {
         };
 
         if (payload.state) {
-          setDishes(payload.state.dishes);
-          setPlan(payload.state.plan);
-          setPantryItems(payload.state.pantryItems);
-          setCheckedItems(payload.state.checkedItems);
-          setSeed(payload.state.seed);
+          const cleanedState = removeLegacyStarterData(payload.state);
+          setDishes(cleanedState.dishes);
+          setPlan(cleanedState.plan);
+          setPantryItems(cleanedState.pantryItems);
+          setCheckedItems(cleanedState.checkedItems);
+          setSeed(cleanedState.seed);
         } else {
           const migrationResponse = await fetch("/api/state", {
             method: "PUT",
@@ -468,6 +385,11 @@ export default function Home() {
   }, [plan, dishMap]);
 
   function regenerateWeek() {
+    if (!dishes.length) {
+      setView("kitchen");
+      setToast("Add your first dish, then I can plan the week!");
+      return;
+    }
     const nextSeed = seed + 1;
     setSeed(nextSeed);
     setPlan(buildWeek(dishes, nextSeed));
@@ -529,7 +451,7 @@ export default function Home() {
       symbol: TYPE_SYMBOLS[newDish.type],
     };
     setDishes((current) => [...current, dish]);
-    setNewDish({ name: "", type: "main", families: "Vietnamese", servings: 2, recipe: "", link: "", ingredients: [blankIngredient()] });
+    setNewDish({ name: "", type: "main", families: "", servings: 2, recipe: "", link: "", ingredients: [blankIngredient()] });
     setShowAddDish(false);
     setToast(`${dish.name} joined your kitchen`);
   }
@@ -567,7 +489,7 @@ export default function Home() {
           {navItems.map((item) => (
             <button key={item.id} className={`nav-item ${view === item.id ? "active" : ""}`} onClick={() => setView(item.id)}>
               <span>{item.icon}</span>{item.label}
-              {item.id === "grocery" && <small>{groceryItems.length - pantryItems.length}</small>}
+              {item.id === "grocery" && <small>{Math.max(0, groceryItems.length - pantryItems.length)}</small>}
             </button>
           ))}
         </nav>
@@ -592,7 +514,7 @@ export default function Home() {
               <div>
                 <p className="eyebrow">SEPTEMBER 14—20 · FOR ONE</p>
                 <h1>What are we eating?</h1>
-                <p className="subtitle">Your week is planned, your leftovers are loved.</p>
+                <p className="subtitle">{dishes.length ? "Your week is planned, your leftovers are loved." : "Start with a few favorite dishes and I’ll plan the rest."}</p>
               </div>
               <button className="primary-button" onClick={regenerateWeek}><span>✦</span> mix me a new week</button>
             </header>
@@ -608,7 +530,14 @@ export default function Home() {
                 <p><span className="leftover-dot" /> softly shaded = leftovers</p>
               </div>
               <div className="week-grid">
-                {DAYS.map((day, dayIndex) => {
+                {!dishes.length ? (
+                  <div className="planner-empty">
+                    <span>⌂</span>
+                    <h2>Your menu is ready for its first recipe.</h2>
+                    <p>Add dishes to your kitchen, then mix a week from your own food.</p>
+                    <button onClick={() => setShowAddDish(true)}>＋ add my first dish</button>
+                  </div>
+                ) : DAYS.map((day, dayIndex) => {
                   const meal = plan[mealTime][dayIndex];
                   return (
                     <article className={`day-card ${dayIndex === 0 ? "today" : ""} ${meal?.leftover ? "has-leftover" : ""}`} key={day.short}>
@@ -629,7 +558,7 @@ export default function Home() {
                           );
                         })}
                       </div>
-                      <button className="remix" onClick={() => regenerateMeal(mealTime, dayIndex)} aria-label={`Regenerate ${day.long} ${mealTime}`}>↻</button>
+                      {!!meal?.componentIds.length && <button className="remix" onClick={() => regenerateMeal(mealTime, dayIndex)} aria-label={`Regenerate ${day.long} ${mealTime}`}>↻</button>}
                     </article>
                   );
                 })}
@@ -667,7 +596,11 @@ export default function Home() {
                     <span className="card-footer">makes {dish.servings} {dish.servings === 1 ? "meal" : "meals"}<b>→</b></span>
                   </button>
                 ))}
-                {!filteredDishes.length && <div className="empty-kitchen"><p>No cards match that search.</p><button onClick={() => { setQuery(""); setTypeFilter("all"); }}>clear filters</button></div>}
+                {!dishes.length ? (
+                  <div className="empty-kitchen"><p>Your kitchen is empty—make your first reusable dish card.</p><button onClick={() => setShowAddDish(true)}>＋ add a dish</button></div>
+                ) : !filteredDishes.length && (
+                  <div className="empty-kitchen"><p>No cards match that search.</p><button onClick={() => { setQuery(""); setTypeFilter("all"); }}>clear filters</button></div>
+                )}
               </div>
             </section>
           </>
@@ -719,6 +652,7 @@ export default function Home() {
                       })}
                     </div>
                   ))}
+                  {!groceryItems.length && <div className="section-empty"><h2>Nothing to shop for yet.</h2><p>Build a weekly menu and its ingredients will gather here automatically.</p><button onClick={() => setView("kitchen")}>go to my kitchen →</button></div>}
                 </div>
               </section>
               <aside className="grocery-art">
@@ -756,6 +690,7 @@ export default function Home() {
                       </div>
                     </article>
                   ))}
+                  {!leftoverBatches.length && <div className="section-empty"><h3>No leftover batches yet.</h3><p>Once your menu reuses a cooked dish, its path will appear here.</p><button onClick={() => setView("kitchen")}>add dishes →</button></div>}
                 </div>
               </section>
               <aside className="cat-note">
