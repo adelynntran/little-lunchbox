@@ -4,6 +4,9 @@ A cozy personal weekly menu and grocery list maker. Little Lunchbox combines
 reusable dishes into compatible meals, plans leftovers, and builds one shopping
 list for the week.
 
+## Trial site:
+https://little-lunchbox.adelynn-tr.workers.dev/
+
 ## What it does
 
 - Plans breakfast, lunch, and dinner for one person
