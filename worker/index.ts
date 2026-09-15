@@ -34,6 +34,13 @@ async function withVerifiedOwner(request: Request, ctx: ExecutionContext) {
   if (ctx.access) {
     const identity = await ctx.access.getIdentity();
     if (identity?.email) headers.set(OWNER_HEADER, identity.email.trim().toLowerCase());
+  } else {
+    // Workers with Static Assets run behind Cloudflare's internal asset router,
+    // which currently does not forward ctx.access. Access still authenticates
+    // the request and attaches both the signed assertion and verified email.
+    const assertion = request.headers.get("cf-access-jwt-assertion");
+    const email = request.headers.get("cf-access-authenticated-user-email");
+    if (assertion && email) headers.set(OWNER_HEADER, email.trim().toLowerCase());
   }
 
   return new Request(request, { headers });

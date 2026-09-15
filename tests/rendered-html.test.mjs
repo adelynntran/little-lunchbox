@@ -34,6 +34,11 @@ test("contains no disposable starter preview", async () => {
 });
 
 test("protects the database API until Cloudflare Access authenticates the user", async () => {
-  const response = await request("/api/state", { "x-little-lunchbox-owner": "attacker@example.com" });
-  assert.equal(response.status, 401);
+  const forgedOwner = await request("/api/state", { "x-little-lunchbox-owner": "attacker@example.com" });
+  assert.equal(forgedOwner.status, 401);
+
+  const unsignedEmail = await request("/api/state", {
+    "cf-access-authenticated-user-email": "attacker@example.com",
+  });
+  assert.equal(unsignedEmail.status, 401);
 });
