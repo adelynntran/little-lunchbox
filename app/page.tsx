@@ -44,15 +44,38 @@ type KitchenState = {
   seed: number;
 };
 
-const DAYS = [
-  { short: "Mon", long: "Monday", date: "14" },
-  { short: "Tue", long: "Tuesday", date: "15" },
-  { short: "Wed", long: "Wednesday", date: "16" },
-  { short: "Thu", long: "Thursday", date: "17" },
-  { short: "Fri", long: "Friday", date: "18" },
-  { short: "Sat", long: "Saturday", date: "19" },
-  { short: "Sun", long: "Sunday", date: "20" },
+const WEEKDAYS = [
+  { short: "Mon", long: "Monday" },
+  { short: "Tue", long: "Tuesday" },
+  { short: "Wed", long: "Wednesday" },
+  { short: "Thu", long: "Thursday" },
+  { short: "Fri", long: "Friday" },
+  { short: "Sat", long: "Saturday" },
+  { short: "Sun", long: "Sunday" },
 ];
+
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function getCalendarWeek(referenceDate: Date) {
+  const start = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  start.setDate(start.getDate() - (start.getDay() === 0 ? 6 : start.getDay() - 1));
+
+  const days = WEEKDAYS.map((weekday, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return { ...weekday, date: String(date.getDate()), key: localDateKey(date) };
+  });
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const monthName = (date: Date) => date.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
+  const label = start.getMonth() === end.getMonth()
+    ? `${monthName(start)} ${start.getDate()}—${end.getDate()}`
+    : `${monthName(start)} ${start.getDate()}—${monthName(end)} ${end.getDate()}`;
+
+  return { days, label, todayKey: localDateKey(referenceDate) };
+}
 
 const TYPE_LABELS: Record<DishType, string> = {
   main: "main dish",
@@ -92,7 +115,7 @@ function buildWeek(dishes: Dish[], seed = 0): WeekPlan {
   const bases = dishes.filter((dish) => dish.type === "base");
   const sides = dishes.filter((dish) => dish.type === "side");
 
-  const breakfast: Meal[] = DAYS.map((_, dayIndex) => {
+  const breakfast: Meal[] = WEEKDAYS.map((_, dayIndex) => {
     const dish = breakfasts[dayIndex % Math.max(breakfasts.length, 1)];
     return {
       id: `breakfast-${seed}-${dayIndex}`,
@@ -121,7 +144,7 @@ function buildWeek(dishes: Dish[], seed = 0): WeekPlan {
         componentIds: components.map((dish) => dish.id),
         batchIds,
         leftover: use > 0,
-        cookedAt: use > 0 ? `${DAYS[Math.floor(slot / 2)].short}` : undefined,
+        cookedAt: use > 0 ? `${WEEKDAYS[Math.floor(slot / 2)].short}` : undefined,
       });
       slot += 1;
     }
@@ -134,8 +157,8 @@ function buildWeek(dishes: Dish[], seed = 0): WeekPlan {
 
   return {
     breakfast,
-    lunch: DAYS.map((_, index) => savory[index * 2]),
-    dinner: DAYS.map((_, index) => savory[index * 2 + 1]),
+    lunch: WEEKDAYS.map((_, index) => savory[index * 2]),
+    dinner: WEEKDAYS.map((_, index) => savory[index * 2 + 1]),
   };
 }
 
@@ -169,6 +192,7 @@ const blankIngredient = (): Ingredient => ({ name: "", amount: 1, unit: "", aisl
 const makeId = (prefix: string) => `${prefix}-${globalThis.crypto.randomUUID()}`;
 
 export default function Home() {
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [view, setView] = useState<View>("week");
   const [mealTime, setMealTime] = useState<MealTime>("dinner");
   const [dishes, setDishes] = useState<Dish[]>([]);
@@ -188,6 +212,30 @@ export default function Home() {
     name: "", type: "main" as DishType, families: "", servings: 2,
     recipe: "", link: "", ingredients: [blankIngredient()],
   });
+
+  useEffect(() => {
+    let midnightTimer = 0;
+    const refreshCalendar = () => {
+      const now = new Date();
+      setCalendarDate(now);
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 1, 0);
+      window.clearTimeout(midnightTimer);
+      midnightTimer = window.setTimeout(refreshCalendar, nextMidnight.getTime() - now.getTime());
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshCalendar();
+    };
+
+    refreshCalendar();
+    window.addEventListener("focus", refreshCalendar);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearTimeout(midnightTimer);
+      window.removeEventListener("focus", refreshCalendar);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -376,7 +424,7 @@ export default function Home() {
           const dish = dishMap.get(dishId);
           if (!batchId || !dish) return;
           const entry = batches.get(batchId) || { dish, uses: [] };
-          entry.uses.push({ day: DAYS[dayIndex].short, time });
+          entry.uses.push({ day: WEEKDAYS[dayIndex].short, time });
           batches.set(batchId, entry);
         });
       });
@@ -432,7 +480,7 @@ export default function Home() {
         [time]: currentPlan[time].map((meal, index) => index === dayIndex ? newMeal : meal),
       }));
     }
-    setToast(`${DAYS[dayIndex].long} ${time} remixed`);
+    setToast(`${WEEKDAYS[dayIndex].long} ${time} remixed`);
   }
 
   function submitDish(event: FormEvent) {
@@ -477,6 +525,7 @@ export default function Home() {
     { id: "grocery", label: "grocery list", icon: "☷" },
     { id: "leftovers", label: "leftovers", icon: "↺" },
   ];
+  const calendarWeek = getCalendarWeek(calendarDate);
 
   return (
     <main className={`site-shell view-${view}`}>
@@ -512,7 +561,7 @@ export default function Home() {
           <>
             <header className="page-header">
               <div>
-                <p className="eyebrow">SEPTEMBER 14—20 · FOR ONE</p>
+                <p className="eyebrow" suppressHydrationWarning>{calendarWeek.label} · FOR ONE</p>
                 <h1>What are we eating?</h1>
                 <p className="subtitle">{dishes.length ? "Your week is planned, your leftovers are loved." : "Start with a few favorite dishes and I’ll plan the rest."}</p>
               </div>
@@ -537,13 +586,13 @@ export default function Home() {
                     <p>Add dishes to your kitchen, then mix a week from your own food.</p>
                     <button onClick={() => setShowAddDish(true)}>＋ add my first dish</button>
                   </div>
-                ) : DAYS.map((day, dayIndex) => {
+                ) : calendarWeek.days.map((day, dayIndex) => {
                   const meal = plan[mealTime][dayIndex];
                   return (
-                    <article className={`day-card ${dayIndex === 0 ? "today" : ""} ${meal?.leftover ? "has-leftover" : ""}`} key={day.short}>
+                    <article className={`day-card ${day.key === calendarWeek.todayKey ? "today" : ""} ${meal?.leftover ? "has-leftover" : ""}`} key={day.key}>
                       <div className="day-heading">
                         <span>{day.short}</span>
-                        <strong>{day.date}</strong>
+                        <strong suppressHydrationWarning>{day.date}</strong>
                       </div>
                       {meal?.leftover && <span className="leftover-stamp">LEFTOVERS</span>}
                       <div className="meal-components">
@@ -609,7 +658,7 @@ export default function Home() {
           <>
             <header className="page-header grocery-header">
               <div>
-                <p className="eyebrow">SEPTEMBER 14—20</p>
+                <p className="eyebrow" suppressHydrationWarning>{calendarWeek.label}</p>
                 <h1>Grocery list</h1>
                 <p className="subtitle">Combined, sorted, and ready for the shops.</p>
               </div>

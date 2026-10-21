@@ -4,6 +4,17 @@ import test from "node:test";
 
 const projectRoot = new URL("../", import.meta.url);
 
+function currentWeekLabel(referenceDate = new Date()) {
+  const start = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  start.setDate(start.getDate() - (start.getDay() === 0 ? 6 : start.getDay() - 1));
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const monthName = (date) => date.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
+  return start.getMonth() === end.getMonth()
+    ? `${monthName(start)} ${start.getDate()}—${end.getDate()}`
+    : `${monthName(start)} ${start.getDate()}—${monthName(end)} ${end.getDate()}`;
+}
+
 async function request(path = "/", headers = {}) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
@@ -24,6 +35,7 @@ test("server-renders Little Lunchbox", async () => {
   const html = await response.text();
   assert.match(html, /<title>Little Lunchbox<\/title>/i);
   assert.match(html, /What are we eating\?/i);
+  assert.match(html, new RegExp(currentWeekLabel()));
   assert.match(html, /my kitchen/i);
   assert.match(html, /grocery list/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
