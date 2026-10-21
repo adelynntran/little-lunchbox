@@ -105,8 +105,7 @@ h1 { margin: 0; font-size: clamp(39px, 5vw, 66px); line-height: 1; letter-spacin
 .recipe-card { min-height: 224px; position: relative; padding: 23px 18px 17px; display: flex; flex-direction: column; align-items: start; border: 1.5px solid var(--ink); box-shadow: 4px 5px 0 rgba(60,51,45,.38); text-align: left; transform: rotate(var(--tilt)); transition: transform .15s, box-shadow .15s; }
 .recipe-card::before { content: ""; width: 62px; height: 17px; position: absolute; left: 50%; top: -9px; transform: translateX(-50%) rotate(-2deg); background: rgba(255,250,240,.66); }
 .recipe-card:hover { z-index: 2; transform: rotate(0) translateY(-5px); box-shadow: 7px 8px 0 rgba(60,51,45,.35); }
-.card-symbol { width: 39px; height: 39px; display: grid; place-items: center; border: 1.5px solid var(--ink); border-radius: 50%; background: rgba(255,255,255,.48); font-size: 21px; }
-.card-type { margin-top: 18px; font-size: 8px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.card-type { margin-top: 8px; font-size: 8px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
 .recipe-card strong { margin-top: 6px; display: block; font-family: "Special Elite", monospace; font-size: 20px; font-weight: 400; line-height: 1.12; }
 .card-family { margin-top: 8px; color: rgba(60,51,45,.72); font-size: 10px; }
 .card-footer { width: 100%; margin-top: auto; padding-top: 12px; display: flex; justify-content: space-between; border-top: 1px dashed rgba(60,51,45,.45); font-size: 10px; }

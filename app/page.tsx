@@ -589,7 +589,6 @@ export default function Home() {
               <div className="dish-grid">
                 {filteredDishes.map((dish, index) => (
                   <button className={`recipe-card type-${dish.type}`} style={{ "--tilt": `${[-1.2, .8, -.4, 1.1][index % 4]}deg` } as React.CSSProperties} key={dish.id} onClick={() => setSelectedDish(dish)}>
-                    <span className="card-symbol">{dish.symbol}</span>
                     <span className="card-type">{TYPE_LABELS[dish.type]}</span>
                     <strong>{dish.name}</strong>
                     <span className="card-family">{dish.families.join(" · ")}</span>
